@@ -1,0 +1,211 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>手話翻訳アプリ</title>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Mochiy+Pop+One&display=swap');
+
+        body {
+            font-family: 'Mochiy Pop One', sans-serif;
+            background: linear-gradient(to bottom, #fce4ec, #c8e6c9);
+            margin: 0;
+            padding: 0;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            min-height: 100vh;
+            color: #333;
+        }
+        header {
+            background: #f8bbd0;
+            width: 100%;
+            padding: 1rem;
+            text-align: center;
+            color: #fff;
+            border-bottom: 3px solid #f06292;
+        }
+        nav {
+            display: flex;
+            justify-content: center;
+            gap: 1rem;
+            margin: 1rem 0;
+        }
+        nav a {
+            background: #b2dfdb;
+            color: #fff;
+            padding: 0.5rem 1rem;
+            border-radius: 25px;
+            text-decoration: none;
+            transition: background 0.3s, transform 0.2s;
+        }
+        nav a:hover {
+            background: #80cbc4;
+            transform: scale(1.1);
+        }
+        #app-container {
+            background: #fffde7;
+            padding: 1.5rem;
+            border-radius: 20px;
+            width: 90%;
+            max-width: 700px;
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.2);
+            text-align: center;
+        }
+        #video {
+            width: 100%;
+            max-width: 600px;
+            border-radius: 15px;
+            border: 3px solid #ffccbc;
+        }
+        #controls {
+            display: flex;
+            gap: 0.8rem;
+            margin: 1rem 0;
+            flex-wrap: wrap;
+            justify-content: center;
+        }
+        .button {
+            background: #ffccbc;
+            color: #fff;
+            border: none;
+            padding: 0.7rem 1.4rem;
+            border-radius: 25px;
+            cursor: pointer;
+            font-size: 1rem;
+            transition: background 0.3s, transform 0.2s;
+        }
+        .button:hover {
+            background: #ffab91;
+            transform: scale(1.05);
+        }
+        .button.active {
+            background: #81d4fa;
+        }
+        #output {
+            background: #fff;
+            padding: 1rem;
+            border-radius: 15px;
+            min-height: 60px;
+            width: 90%;
+            max-width: 600px;
+            margin: 1rem auto;
+            border: 2px solid #b2dfdb;
+            font-size: 1.2rem;
+        }
+        @keyframes pulse {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.02); }
+            100% { transform: scale(1); }
+        }
+        #output.active {
+            animation: pulse 1s infinite;
+        }
+        footer {
+            margin-top: 2rem;
+            color: #666;
+            font-size: 0.9rem;
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <h1>🌸 手話翻訳アプリ 🌸</h1>
+    </header>
+    <nav>
+        <a href="#home">ホーム</a>
+        <a href="#guide">ガイド</a>
+        <a href="#contact">コンタクト</a>
+    </nav>
+    <div id="app-container">
+        <video id="video" autoplay></video>
+        <div id="controls">
+            <button class="button" onclick="startCamera()">カメラ開始</button>
+            <button class="button" onclick="stopCamera()">カメラ停止</button>
+            <button class="button" onclick="clearOutput()">クリア</button>
+            <button class="button" id="audio-toggle" onclick="toggleAudio()">音声ON</button>
+        </div>
+        <div id="output">翻訳されたテキストがここに表示されます</div>
+    </div>
+    <footer>
+        <p>&copy; 2025 手話翻訳アプリ</p>
+    </footer>
+
+    <script>
+        const video = document.getElementById('video');
+        const output = document.getElementById('output');
+        const audioToggle = document.getElementById('audio-toggle');
+        let stream = null;
+        let audioEnabled = true;
+        let intervalId = null;
+
+        async function startCamera() {
+            try {
+                stream = await navigator.mediaDevices.getUserMedia({ video: true });
+                video.srcObject = stream;
+                output.textContent = 'カメラが起動しました！ ジェスチャーを試してね！';
+                output.classList.add('active');
+                startGestureRecognition();
+            } catch (err) {
+                output.textContent = `エラー: カメラが起動できませんでした (${err.message})`;
+                output.classList.remove('active');
+            }
+        }
+
+        function stopCamera() {
+            if (stream) {
+                stream.getTracks().forEach(track => track.stop());
+                video.srcObject = null;
+                output.textContent = 'カメラが停止しました。';
+                output.classList.remove('active');
+                clearInterval(intervalId);
+            }
+        }
+
+        function clearOutput() {
+            output.textContent = '翻訳されたテキストがここに表示されます';
+            output.classList.remove('active');
+        }
+
+        function toggleAudio() {
+            audioEnabled = !audioEnabled;
+            audioToggle.textContent = audioEnabled ? '音声ON' : '音声OFF';
+            audioToggle.classList.toggle('active', audioEnabled);
+        }
+
+        function startGestureRecognition() {
+            const gestures = [
+                'こんにちは！',
+                'ありがとう！',
+                'またね！',
+                'お願い！',
+                '元気？'
+            ];
+            let index = 0;
+            function updateGesture() {
+                if (stream && stream.active) {
+                    const gesture = gestures[index];
+                    output.textContent = `翻訳: ${gesture}`;
+                    if (audioEnabled && 'speechSynthesis' in window) {
+                        const utterance = new SpeechSynthesisUtterance(gesture);
+                        utterance.lang = 'ja-JP';
+                        speechSynthesis.speak(utterance);
+                    }
+                    index = (index + 1) % gestures.length;
+                }
+            }
+            updateGesture();
+            intervalId = setInterval(updateGesture, 3000);
+        }
+
+        document.querySelectorAll('nav a').forEach(link => {
+            link.addEventListener('click', (e) => {
+                e.preventDefault();
+                output.textContent = `${e.target.textContent}ページを選択（準備中）`;
+                output.classList.remove('active');
+            });
+        });
+    </script>
+</body>
+</html>
