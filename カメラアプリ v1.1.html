@@ -1,0 +1,543 @@
+﻿<html lang="ja">
+<head>
+   <meta charset="UTF-8">
+   <meta name="viewport" content="width=device-width, initial-scale=1.0">
+   <title>カメラアプリ</title>
+   <script src="https://cdn.tailwindcss.com"></script>
+   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+   <style>
+       body {
+           font-family: 'Inter', sans-serif;
+           background: linear-gradient(135deg, #fce4ec 0%, #e1bee7 100%); /* 優しいパステルグラデーション */
+           display: flex;
+           justify-content: center;
+           align-items: center;
+           min-height: 100vh;
+           margin: 0;
+           overflow-x: hidden; /* 横スクロールを防ぐ */
+       }
+       /* メインコンテナのスタイル */
+       .app-container {
+           background-color: rgba(255, 255, 255, 0.9); /* 少し透明感のある白 */
+           border-radius: 2rem; /* より丸みを帯びた角 */
+           box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04); /* より深い影 */
+           padding: 2.5rem; /* より広いパディング */
+           display: flex;
+           flex-direction: column;
+           align-items: center;
+           width: 95%; /* 流動的な幅 */
+           max-width: 600px; /* 大きい画面での最大幅 */
+           animation: fadeIn 1s ease-out; /* シンプルなフェードインアニメーション */
+       }
+
+       @keyframes fadeIn {
+           from { opacity: 0; transform: translateY(20px); }
+           to { opacity: 1; transform: translateY(0); }
+       }
+
+       /* ビデオ要素のスタイル (元の大きなサイズを維持) */
+       video {
+           width: 100%; /* 親要素の幅いっぱいに広がる */
+           height: auto; /* アスペクト比を維持 */
+           border-radius: 1.5rem; /* より丸みを帯びた角 */
+           box-shadow: 0 8px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+           background-color: #000; /* ビデオ領域の背景を黒に */
+           border: 4px solid #f06292; /* ポップなボーダーカラー */
+           transition: transform 0.3s ease-in-out;
+           margin-bottom: 2rem; /* 解析結果との間隔 */
+       }
+       video:hover {
+           transform: scale(1.01); /* 微妙なホバー効果 */
+       }
+
+       /* ボタンのスタイル */
+       .btn {
+           font-weight: 600; /* セミボールド */
+           padding: 0.8rem 2rem; /* 調整されたパディング */
+           border-radius: 9999px; /* 完全な丸み */
+           box-shadow: 0 5px 10px rgba(0, 0, 0, 0.1);
+           transition: all 0.3s ease-in-out;
+           text-shadow: 1px 1px 2px rgba(0,0,0,0.1); /* 微妙なテキストシャドウ */
+       }
+       .btn:hover {
+           transform: translateY(-3px) scale(1.02); /* ホバー時のポップ効果 */
+           box-shadow: 0 8px 15px rgba(0, 0, 0, 0.2);
+       }
+       .btn-primary {
+           background: linear-gradient(45deg, #ff8a80, #ff80ab); /* 暖色系のパステルグラデーション */
+           color: white;
+       }
+       .btn-secondary {
+           background: linear-gradient(45deg, #80cbc4, #80deea); /* 寒色系のパステルグラデーション */
+           color: white;
+       }
+
+       /* メッセージボックスのスタイル */
+       #message-box {
+           border-radius: 0.75rem;
+           font-size: 0.9rem;
+           padding: 0.75rem 1.25rem;
+           text-align: center;
+       }
+       .message-error {
+           background-color: #ffebee; /* 明るい赤系のパステル */
+           border-color: #ef9a9a; /* 赤系のパステル */
+           color: #c62828; /* 暗い赤 */
+       }
+       .message-success {
+           background-color: #e8f5e9; /* 明るい緑系のパステル */
+           border-color: #a5d6a7; /* 緑系のパステル */
+           color: #2e7d32; /* 暗い緑 */
+       }
+       .message-info { /* 情報メッセージ用の新しいスタイル */
+           background-color: #e3f2fd; /* 明るい青系のパステル */
+           border-color: #90caf9; /* 青系のパステル */
+           color: #1976d2; /* 暗い青 */
+       }
+
+       /* 解析結果表示エリアのスタイル */
+       #analysis-result {
+           background-color: #fff3e0; /* 優しいオレンジ系の背景 */
+           border: 1px solid #ffcc80; /* オレンジ系のボーダー */
+           border-radius: 0.75rem;
+           padding: 1rem;
+           margin-top: 1rem;
+           width: 100%;
+           max-height: 200px; /* 最大高さを設定 */
+           overflow-y: auto; /* 内容が多すぎる場合はスクロール可能に */
+           font-size: 0.9rem;
+           color: #e65100; /* 暗いオレンジ */
+           box-shadow: inset 0 2px 4px rgba(0,0,0,0.06); /* 内部シャドウ */
+       }
+
+       /* カスタムダイアログのスタイル */
+       .custom-dialog-overlay {
+           position: fixed;
+           top: 0;
+           left: 0;
+           width: 100%;
+           height: 100%;
+           background-color: rgba(0, 0, 0, 0.7); /* 半透明のオーバーレイ */
+           display: flex;
+           justify-content: center;
+           align-items: center;
+           z-index: 1000; /* 他の要素より手前に表示 */
+       }
+
+       .custom-dialog-content {
+           background-color: white;
+           padding: 2rem;
+           border-radius: 1rem;
+           box-shadow: 0 10px 20px rgba(0, 0, 0, 0.2);
+           text-align: center;
+           max-width: 80%;
+           min-width: 280px;
+           animation: slideIn 0.3s ease-out; /* スライドインアニメーション */
+       }
+
+       @keyframes slideIn {
+           from { transform: translateY(-50px); opacity: 0; }
+           to { transform: translateY(0); opacity: 1; }
+       }
+
+       .custom-dialog-content h2 {
+           font-size: 1.5rem;
+           font-weight: bold;
+           margin-bottom: 1rem;
+           color: #f06292; /* ピンク色 */
+       }
+
+       .custom-dialog-content p {
+           margin-bottom: 1.5rem;
+           color: #333;
+       }
+
+       .custom-dialog-content button {
+           background: linear-gradient(45deg, #ff8a80, #ff80ab); /* プライマリーボタンと同じグラデーション */
+           color: white;
+           font-weight: 600;
+           padding: 0.7rem 1.5rem;
+           border-radius: 9999px;
+           box-shadow: 0 3px 6px rgba(0, 0, 0, 0.1);
+           transition: all 0.2s ease-in-out;
+       }
+       .custom-dialog-content button:hover {
+           transform: translateY(-2px);
+           box-shadow: 0 5px 10px rgba(0, 0, 0, 0.2);
+       }
+   </style>
+</head>
+<body class="flex flex-col items-center justify-center p-4">
+   <div class="app-container">
+       <div id="title-screen" class="flex flex-col items-center justify-center w-full">
+           <h1 class="text-4xl font-extrabold text-pink-600 mb-8 drop-shadow-md text-center">
+               💖 カメラアプリ 📸
+           </h1>
+           <button id="start-app-button" class="btn btn-primary mb-4 w-full sm:w-auto">
+               アプリ開始
+           </button>
+           <button id="save-source-title-screen" class="btn btn-secondary w-full sm:w-auto">
+               ソースコードを保存
+           </button>
+       </div>
+
+       <div id="camera-app-container" class="hidden flex-col items-center w-full">
+           <h1 class="text-4xl font-extrabold text-pink-600 mb-8 drop-shadow-md text-center">
+               💖 カメラアプリ 📸
+           </h1>
+
+           <video id="video" autoplay playsinline></video>
+
+           <div id="analysis-result" class="mt-6 hidden">
+               <p class="font-bold mb-2">解析結果:</p>
+               <ul id="analysis-list" class="list-disc list-inside">
+                   </ul>
+           </div>
+
+           <div id="message-box" class="mt-6 w-full hidden" role="alert">
+               <span id="message-text"></span>
+           </div>
+       </div>
+   </div>
+
+   <div id="custom-dialog-overlay" class="custom-dialog-overlay hidden">
+       <div class="custom-dialog-content">
+           <h2 id="dialog-title"></h2>
+           <p id="dialog-message"></p>
+           <button id="dialog-ok-button">了解</button>
+       </div>
+   </div>
+
+   <script>
+       // DOM要素への参照を取得
+       const titleScreen = document.getElementById('title-screen');
+       const cameraAppContainer = document.getElementById('camera-app-container');
+       const startAppButton = document.getElementById('start-app-button');
+       const saveSourceTitleScreenButton = document.getElementById('save-source-title-screen');
+
+       const video = document.getElementById('video');
+       const analysisResultDiv = document.getElementById('analysis-result'); // 解析結果表示エリア
+       const analysisList = document.getElementById('analysis-list'); // 解析結果リスト
+       const messageBox = document.getElementById('message-box');
+       const messageText = document.getElementById('message-text');
+
+       // カスタムダイアログのDOM要素
+       const customDialogOverlay = document.getElementById('custom-dialog-overlay');
+       const dialogTitle = document.getElementById('dialog-title');
+       const dialogMessage = document.getElementById('dialog-message');
+       const dialogOkButton = document.getElementById('dialog-ok-button');
+
+       // 内部的に使用するcanvasとcontext
+       let offscreenCanvas; // 動的に作成されるcanvas要素
+       let offscreenContext; // canvasの2Dコンテキスト
+
+       // ソースコード保存用のアプリバージョンを定義
+       const APP_VERSION = "1.1"; // バージョンは1.1のまま
+
+       // リアルタイム解析のための変数
+       let lastAnalysisTime = 0;
+       const analysisInterval = 5000; // 5秒ごとに解析 (APIコールを抑制するため)
+       let isAnalyzing = false; // 解析中フラグ
+       let animationFrameId; // requestAnimationFrameのIDを保持
+
+       // ユーザーにメッセージを表示する関数 (下部に表示される一時的なメッセージ)
+       function showMessage(message, type = 'error') {
+           messageText.textContent = message;
+           messageBox.classList.remove('hidden');
+           messageBox.classList.remove('message-error', 'message-success', 'message-info');
+           if (type === 'error') {
+               messageBox.classList.add('message-error');
+           } else if (type === 'success') {
+               messageBox.classList.add('message-success');
+           } else if (type === 'info') {
+               messageBox.classList.add('message-info');
+           }
+           setTimeout(() => {
+               hideMessage();
+           }, 3000);
+       }
+
+       // メッセージを非表示にする関数
+       function hideMessage() {
+           messageBox.classList.add('hidden');
+       }
+
+       // カスタムダイアログを表示する関数
+       function showCustomDialog(title, message) {
+           dialogTitle.textContent = title;
+           dialogMessage.textContent = message;
+           customDialogOverlay.classList.remove('hidden');
+           isAnalyzing = true; // ダイアログ表示中は解析を一時停止
+           console.log("Custom dialog shown. Analysis paused.");
+       }
+
+       // カスタムダイアログを非表示にする関数
+       function hideCustomDialog() {
+           customDialogOverlay.classList.add('hidden');
+           isAnalyzing = false; // ダイアログが閉じたら解析を再開
+           console.log("Custom dialog hidden. Analysis resumed.");
+       }
+
+       // ダイアログの「了解」ボタンのイベントリスナー
+       dialogOkButton.addEventListener('click', hideCustomDialog);
+
+
+       // カメラにアクセスする関数
+       function initializeCamera() {
+           // 以前の解析ループがあれば停止
+           if (animationFrameId) {
+               cancelAnimationFrame(animationFrameId);
+               animationFrameId = null; // IDをリセット
+           }
+           isAnalyzing = false; // フラグをリセット
+
+           video.classList.remove('hidden');
+           analysisResultDiv.classList.remove('hidden'); // 解析結果エリアを常に表示
+           analysisList.innerHTML = '<li>カメラを起動中...</li>'; // 初期メッセージを表示
+
+           // 背面カメラを優先的に使用する設定
+           navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } })
+               .then(function(stream) {
+                   video.srcObject = stream;
+                   // 'playing' イベントを待ち、ビデオが実際に再生を開始したことを確認
+                   video.onplaying = () => {
+                       console.log("Video started playing. Dimensions:", video.videoWidth, video.videoHeight); // デバッグログ
+
+                       // ビデオの寸法が有効であることを確認
+                       if (video.videoWidth > 0 && video.videoHeight > 0) {
+                           // 動的にcanvas要素を作成し、DOMには追加しない
+                           offscreenCanvas = document.createElement('canvas');
+                           offscreenCanvas.width = video.videoWidth;
+                           offscreenCanvas.height = video.videoHeight;
+                           offscreenContext = offscreenCanvas.getContext('2d');
+                           console.log("Dynamic canvas initialized."); // デバッグログ
+
+                           hideMessage();
+                           startRealtimeAnalysis(); // リアルタイム解析を開始
+                       } else {
+                           console.error("Video dimensions are 0, cannot initialize canvas for analysis.");
+                           analysisList.innerHTML = '<li>カメラの準備ができませんでした。ビデオの寸法が不正です。</li>';
+                           showMessage("カメラの準備ができませんでした。ビデオの寸法が不正です。", 'error');
+                       }
+                       // onplayingイベントは一度しか必要ないので、イベントリスナーを削除
+                       video.onplaying = null;
+                   };
+
+                   // video.play()が失敗した場合のハンドリング
+                   video.play().catch(playError => {
+                       console.error("Video play failed:", playError);
+                       showCustomDialog("ビデオ再生エラー", `ビデオの再生に失敗しました: ${playError.message}。`);
+                       analysisList.innerHTML = `<li>ビデオ再生エラー: ${playError.message}</li>`;
+                   });
+
+               })
+               .catch(function(err) {
+                   console.error("カメラへのアクセスに失敗しました: ", err);
+                   if (err.name === 'NotAllowedError') {
+                       showCustomDialog("カメラアクセス拒否", "カメラへのアクセスが拒否されました。ブラウザの設定で許可してください。");
+                       analysisList.innerHTML = '<li>カメラへのアクセスが拒否されました。</li>';
+                   } else if (err.name === 'NotFoundError') {
+                       showCustomDialog("カメラが見つかりません", "カメラが見つかりませんでした。別のカメラをお試しください。");
+                       analysisList.innerHTML = '<li>カメラが見つかりませんでした。</li>';
+                   } else if (err.name === 'NotReadableError') {
+                       showCustomDialog("カメラ使用中", "カメラが他のアプリで使用中です。他のアプリを閉じてから再度お試しください。");
+                       analysisList.innerHTML = '<li>カメラが使用中です。</li>';
+                   } else {
+                       showCustomDialog("カメラエラー", `カメラへのアクセス中にエラーが発生しました: ${err.message}。`);
+                       analysisList.innerHTML = `<li>カメラエラー: ${err.message}</li>`;
+                   }
+               });
+       }
+
+       // リアルタイム解析を開始する関数
+       function startRealtimeAnalysis() {
+           function analyzeFrame() {
+               const now = Date.now();
+               // 設定された間隔でAPIコールを抑制し、かつ解析中でない場合のみ実行
+               if (now - lastAnalysisTime > analysisInterval && !isAnalyzing) {
+                   lastAnalysisTime = now;
+
+                   // ビデオが一時停止しているか、ストリームが切断されているか、canvasが未初期化の場合
+                   if (!video.srcObject || video.paused || !offscreenContext || video.videoWidth === 0 || video.videoHeight === 0) {
+                       console.warn("Video or canvas not ready for analysis (dimensions 0 or paused). Stopping real-time analysis loop.");
+                       analysisList.innerHTML = '<li>カメラの準備ができていません。</li>'; // 警告メッセージを表示
+                       if (animationFrameId) {
+                           cancelAnimationFrame(animationFrameId); // ループを停止
+                           animationFrameId = null;
+                       }
+                       return;
+                   }
+
+                   // OffscreenCanvasの寸法をビデオの寸法に合わせる
+                   offscreenCanvas.width = video.videoWidth;
+                   offscreenCanvas.height = video.videoHeight;
+                   // ビデオから現在のフレームをOffscreenCanvasに描画
+                   offscreenContext.drawImage(video, 0, 0, offscreenCanvas.width, offscreenCanvas.height);
+                   // OffscreenCanvasから画像データURLを取得
+                   const dataURL = offscreenCanvas.toDataURL('image/jpeg', 0.8); // JPEG形式と画質を指定
+                   console.log("Generated dataURL length:", dataURL.length); // デバッグログ
+
+                   // 写真解析関数を呼び出し
+                   analyzePhoto(dataURL);
+               }
+               animationFrameId = requestAnimationFrame(analyzeFrame); // 次のフレームで再度呼び出し
+           }
+           animationFrameId = requestAnimationFrame(analyzeFrame); // ループを開始
+       }
+
+       // 写真解析関数 (リアルタイム解析から呼び出される)
+       async function analyzePhoto(dataURL) {
+           // dataURLの有効性をチェック
+           if (!dataURL || dataURL.length < 100) { // 短すぎるdataURLは無効な可能性
+               console.error("Invalid image data for analysis. DataURL length:", dataURL ? dataURL.length : 0);
+               displayAnalysisResult("画像データが不正です。");
+               isAnalyzing = false; // エラーなのでフラグを下げる
+               return;
+           }
+
+           isAnalyzing = true; // 解析中フラグを立てる
+           displayAnalysisResult("解析中..."); // 解析中であることを表示
+
+           try {
+               // Base64データから"data:image/jpeg;base64,"の部分を削除
+               const base64ImageData = dataURL.split(',')[1];
+
+               const payload = {
+                   contents: [
+                       {
+                           role: "user",
+                           parts: [
+                               { text: "この写真に写っているものをリストアップしてください。箇条書きでお願いします。" },
+                               {
+                                   inlineData: {
+                                       mimeType: "image/jpeg", // MIMEタイプをjpegに合わせる
+                                       data: base64ImageData
+                                   }
+                               }
+                           ]
+                       }
+                   ],
+               };
+
+               const apiKey = ""; // Canvas環境がAPIキーを自動的に提供します
+               const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`;
+
+               console.log("Sending API request with payload:", payload); // 送信ペイロードをログ出力
+
+               const response = await fetch(apiUrl, {
+                   method: 'POST',
+                   headers: { 'Content-Type': 'application/json' },
+                   body: JSON.stringify(payload),
+                   signal: AbortSignal.timeout(15000) // 15秒でタイムアウト
+               });
+
+               if (!response.ok) {
+                   let errorMessage = `APIエラー: ${response.status}`;
+                   try {
+                       const errorData = await response.json();
+                       console.error("API Error Response:", errorData); // APIエラー応答をログ出力
+                       errorMessage += ` - ${errorData.error.message || '不明なエラー'}`;
+                   } catch (jsonError) {
+                       console.error("Failed to parse API error response JSON:", jsonError);
+                       errorMessage += " - 応答を解析できませんでした。";
+                   }
+                   throw new Error(errorMessage);
+               }
+
+               const result = await response.json();
+               console.log("API Response (Success):", result); // API応答をコンソールにログ出力
+
+               if (result.candidates && result.candidates.length > 0 &&
+                   result.candidates[0].content && result.candidates[0].content.parts &&
+                   result.candidates[0].content.parts.length > 0) {
+                   const text = result.candidates[0].content.parts[0].text;
+                   displayAnalysisResult(text); // 解析結果を表示
+               } else {
+                   console.error("API response structure unexpected or no content from Gemini:", result);
+                   displayAnalysisResult("検出されたものはありません。"); // APIから内容が返されない場合もメッセージを表示
+               }
+           } catch (error) {
+               console.error("写真解析中にエラーが発生しました: ", error);
+               if (error.name === 'AbortError') {
+                   showCustomDialog("解析タイムアウト", "解析がタイムアウトしました。ネットワーク接続を確認するか、しばらくしてから再度お試しください。");
+               } else {
+                   showCustomDialog("解析エラー", `解析中にエラーが発生しました: ${error.message}。`);
+               }
+               displayAnalysisResult(`解析エラー: ${error.message}`); // エラーメッセージを解析結果エリアにも表示
+           } finally {
+               // ダイアログが表示されている間はisAnalyzingをtrueのままにするため、
+               // ここではisAnalyzingをfalseに設定しない。
+               // hideCustomDialog()が呼ばれたときにisAnalyzingをfalseにする。
+               if (!customDialogOverlay.classList.contains('hidden')) {
+                   // ダイアログが表示されている場合は何もしない (isAnalyzingはtrueのまま)
+               } else {
+                   isAnalyzing = false; // ダイアログが表示されていない場合は解析を再開
+               }
+           }
+       }
+
+       // 解析結果を表示する関数
+       function displayAnalysisResult(resultText) {
+           analysisList.innerHTML = ''; // 既存のリストをクリア
+
+           // 結果テキストを改行で分割し、各行をリストアイテムとして追加
+           const items = resultText.split('\n').filter(item => item.trim() !== '');
+           if (items.length > 0) {
+               items.forEach(item => {
+                   const li = document.createElement('li');
+                   li.textContent = item.replace(/^- /, ''); // 箇条書きのハイフンを削除
+                   analysisList.appendChild(li);
+               });
+           } else {
+               // 結果がない場合でも、メッセージを表示
+               const li = document.createElement('li');
+               li.textContent = resultText; // 渡されたメッセージをそのまま表示
+               analysisList.appendChild(li);
+           }
+           analysisResultDiv.classList.remove('hidden'); // 解析結果エリアを常に表示
+       }
+
+       // ソースコード保存のロジックを関数化
+       function saveSourceCode() {
+           try {
+               // ドキュメント全体のHTMLコンテンツを取得
+               const sourceCode = document.documentElement.outerHTML;
+               const fileName = `カメラアプリ_v${APP_VERSION}.txt`;
+               const blob = new Blob([sourceCode], { type: 'text/plain' });
+               const url = URL.createObjectURL(blob);
+
+               const a = document.createElement('a');
+               a.href = url;
+               a.download = fileName;
+               document.body.appendChild(a); // 一部のブラウザでクリック可能にするためにbodyに追加
+               a.click(); // プログラムでリンクをクリックしてダウンロードをトリガー
+               document.body.removeChild(a); // 一時的なリンクをクリーンアップ
+               URL.revokeObjectURL(url); // オブジェクトURLを解放
+
+               showMessage(`ソースコードを '${fileName}' として保存しました！`, 'success');
+           } catch (error) {
+               console.error("ソースコードの保存に失敗しました: ", error);
+               showMessage(`ソースコードの保存中にエラーが発生しました: ${error.message}`, 'error');
+           }
+       }
+
+       // 「アプリ開始」ボタンのイベントリスナー
+       startAppButton.addEventListener('click', function() {
+           titleScreen.classList.add('hidden'); // タイトル画面を非表示にする
+           cameraAppContainer.classList.remove('hidden'); // カメラアプリ本体を表示する
+           cameraAppContainer.classList.add('flex'); // flex-colの表示を適用
+           initializeCamera(); // カメラを初期化する
+       });
+
+       // タイトル画面の「ソースコードを保存」ボタンのイベントリスナー
+       saveSourceTitleScreenButton.addEventListener('click', saveSourceCode);
+
+       // ウィンドウがロードされたとき、タイトル画面のみを表示
+       window.onload = function() {
+           // 初期状態ではタイトル画面のみが表示され、カメラは初期化されない
+           titleScreen.classList.remove('hidden');
+           cameraAppContainer.classList.add('hidden');
+       };
+   </script>
+</body>
+</html>
